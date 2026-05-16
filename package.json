@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "npx prisma generate && npx prisma db push",
+    "start": "node server.js"
     "lint": "eslint"
   },
   "dependencies": {
@@ -28,4 +28,5 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
+  
 }
