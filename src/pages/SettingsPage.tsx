@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -25,6 +25,12 @@ export default function SettingsPage() {
     resolver: zodResolver(profileSchema),
     defaultValues: { full_name: profile?.full_name ?? '' },
   });
+
+  useEffect(() => {
+    if (profile?.full_name) {
+      profileForm.reset({ full_name: profile.full_name });
+    }
+  }, [profile?.full_name, profileForm]);
 
   const onSaveProfile = async (data: ProfileFormData) => {
     setSavingProfile(true);
