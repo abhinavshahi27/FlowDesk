@@ -262,6 +262,12 @@ CREATE POLICY "Project admins can delete members"
     OR public.is_project_owner(project_id)
   );
 
+DROP POLICY IF EXISTS "Project admins can update member role" ON project_members;
+CREATE POLICY "Project admins can update member role"
+  ON project_members FOR UPDATE TO authenticated
+  USING (public.is_project_admin(project_id) OR public.is_project_owner(project_id))
+  WITH CHECK (public.is_project_admin(project_id) OR public.is_project_owner(project_id));
+
 -- tasks
 DROP POLICY IF EXISTS "Project members can view tasks" ON tasks;
 CREATE POLICY "Project members can view tasks"

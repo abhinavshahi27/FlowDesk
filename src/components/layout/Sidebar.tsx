@@ -11,6 +11,7 @@ import {
   Plus,
   LogOut,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -42,6 +43,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
     { icon: LayoutDashboard, label: 'Dashboard', to: '/dashboard', hint: 'Overview' },
     { icon: FolderKanban, label: 'Projects', to: '/projects', hint: 'Boards & briefs' },
     { icon: CheckSquare, label: 'My Tasks', to: '/tasks', hint: 'Assigned to you' },
+    { icon: Users, label: 'Members', to: '/members', hint: 'Roles & permissions' },
     { icon: Settings, label: 'Settings', to: '/settings', hint: 'Profile & themes' },
   ];
 

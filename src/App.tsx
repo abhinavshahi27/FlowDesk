@@ -14,6 +14,7 @@ import DashboardPage from './pages/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import MyTasksPage from './pages/MyTasksPage';
+import MembersPage from './pages/MembersPage';
 import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
@@ -56,6 +57,7 @@ export default function App() {
                     <Route path="/projects" element={<ProjectsPage />} />
                     <Route path="/projects/:id" element={<ProjectDetailPage />} />
                     <Route path="/tasks" element={<MyTasksPage />} />
+                    <Route path="/members" element={<MembersPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                   </Route>
                 </Route>
