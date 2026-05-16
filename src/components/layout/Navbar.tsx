@@ -33,7 +33,7 @@ export default function Navbar({ onMenuClick, title, subtitle }: NavbarProps) {
     navigate('/login', { replace: true });
   };
 
-  const displayName = profile?.full_name || 'User';
+  const displayName = profile?.full_name?.trim() || profile?.email?.split('@')[0] || 'User';
 
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur-md sm:px-6">

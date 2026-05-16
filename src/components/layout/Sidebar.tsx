@@ -230,12 +230,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
           <div className="flex items-center gap-2.5 rounded-2xl bg-surface-2/70 p-2 ring-1 ring-border">
             <div
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-on-accent"
-              style={{ backgroundColor: getAvatarColor(profile?.full_name || 'U') }}
+              style={{ backgroundColor: getAvatarColor(profile?.full_name?.trim() || profile?.email?.split('@')[0] || 'U') }}
             >
-              {getInitials(profile?.full_name || 'User')}
+              {getInitials(profile?.full_name?.trim() || profile?.email?.split('@')[0] || 'User')}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-ink">{profile?.full_name || 'User'}</p>
+              <p className="truncate text-xs font-semibold text-ink">{profile?.full_name?.trim() || profile?.email?.split('@')[0] || 'User'}</p>
               <p className="truncate text-[11px] text-dim">{profile?.email}</p>
             </div>
             <button
