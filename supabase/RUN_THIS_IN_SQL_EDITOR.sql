@@ -29,6 +29,13 @@ CREATE TABLE IF NOT EXISTS activity_log (
 
 -- 2. ADD MISSING COLUMNS -------------------------------------------------
 
+-- Relax legacy NOT NULL constraints from any pre-existing schema (safe no-op
+-- if the column doesn't exist).
+DO $$ BEGIN
+  ALTER TABLE profiles ALTER COLUMN name DROP NOT NULL;
+EXCEPTION WHEN undefined_column THEN NULL;
+END $$;
+
 -- profiles
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS full_name text NOT NULL DEFAULT '';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email text NOT NULL DEFAULT '';
@@ -315,10 +322,35 @@ WHERE owner_id IS NOT NULL
 ON CONFLICT (project_id, user_id) DO UPDATE SET role = 'admin';
 
 -- Make sure every existing auth user has a profiles row.
-INSERT INTO public.profiles (id, full_name, email)
-SELECT u.id, COALESCE(u.raw_user_meta_data->>'full_name', ''), COALESCE(u.email, '')
-FROM auth.users u
-ON CONFLICT (id) DO NOTHING;
+-- Detect legacy `name` column dynamically and populate it if present.
+DO $$
+DECLARE
+  has_name_col boolean := EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'name'
+  );
+BEGIN
+  BEGIN
+    IF has_name_col THEN
+      INSERT INTO public.profiles (id, name, full_name, email)
+      SELECT u.id,
+             COALESCE(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1), 'User'),
+             COALESCE(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1), ''),
+             COALESCE(u.email, '')
+      FROM auth.users u
+      ON CONFLICT (id) DO NOTHING;
+    ELSE
+      INSERT INTO public.profiles (id, full_name, email)
+      SELECT u.id,
+             COALESCE(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1), ''),
+             COALESCE(u.email, '')
+      FROM auth.users u
+      ON CONFLICT (id) DO NOTHING;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Profile backfill partially skipped: %', SQLERRM;
+  END;
+END $$;
 
 -- 10. NOTIFY POSTGREST TO RELOAD SCHEMA CACHE ----------------------------
 
