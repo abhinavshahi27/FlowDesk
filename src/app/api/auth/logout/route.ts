@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export async function POST() {
   try {
-    const cookieStore = await cookies();
-    cookieStore.delete('token');
+    const supabase = await createSupabaseServerClient();
+    await supabase.auth.signOut();
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Logout API Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

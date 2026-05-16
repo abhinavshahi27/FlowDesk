@@ -1,67 +1,83 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { headers } from 'next/headers';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const headersList = await headers();
-    const userId = headersList.get('x-user-id');
-    const userRole = headersList.get('x-user-role');
     const { id } = await params;
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!userId) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { status, title, description, assigneeId, dueDate } = await req.json();
 
-    const existingTask = await prisma.task.findUnique({ where: { id } });
-    if (!existingTask) {
+    const { data: existing } = await supabase
+      .from('tasks')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!existing) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // Admins can update anything. Members can only update status if they are assigned to it (or if we want a simpler rule, members can just update status).
-    if (userRole !== 'ADMIN') {
-        // Members can only update status
-        if (title || description || assigneeId || dueDate) {
-            return NextResponse.json({ error: 'Forbidden. Members can only update task status.' }, { status: 403 });
-        }
+    const updates: Record<string, unknown> = {};
+    if (status !== undefined) updates.status = status;
+    if (title !== undefined) updates.title = title;
+    if (description !== undefined) updates.description = description;
+    if (assigneeId !== undefined) updates.assignee_id = assigneeId;
+    if (dueDate !== undefined) updates.due_date = dueDate ? new Date(dueDate).toISOString() : null;
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '42501' || error.message.toLowerCase().includes('row-level security')) {
+        return NextResponse.json(
+          { error: 'Forbidden. Members can only update task status on tasks assigned to them.' },
+          { status: 403 }
+        );
+      }
+      console.error('Update Task Error:', error);
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 
-    const updatedTask = await prisma.task.update({
-      where: { id },
-      data: {
-        ...(status && { status }),
-        ...(userRole === 'ADMIN' && {
-            ...(title && { title }),
-            ...(description && { description }),
-            ...(assigneeId !== undefined && { assigneeId }),
-            ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null })
-        })
-      },
-    });
-
-    return NextResponse.json({ task: updatedTask });
+    return NextResponse.json({ task: data });
   } catch (error) {
+    console.error('Update Task Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
-    try {
-      const headersList = await headers();
-      const userId = headersList.get('x-user-id');
-      const userRole = headersList.get('x-user-role');
-      const { id } = await params;
-  
-      if (!userId || userRole !== 'ADMIN') {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
+
+    if (error) {
+      if (error.code === '42501' || error.message.toLowerCase().includes('row-level security')) {
         return NextResponse.json({ error: 'Forbidden. Admin access required.' }, { status: 403 });
       }
-  
-      await prisma.task.delete({ where: { id } });
-  
-      return NextResponse.json({ success: true });
-    } catch (error) {
+      console.error('Delete Task Error:', error);
       return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete Task Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
+}

@@ -1,27 +1,27 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { headers } from 'next/headers';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export async function GET() {
   try {
-    const headersList = await headers();
-    const userId = headersList.get('x-user-id');
-    
-    if (!userId) {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-      },
-    });
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, name, email, role');
 
-    return NextResponse.json({ users });
+    if (error) {
+      console.error('List Users Error:', error);
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+
+    return NextResponse.json({ users: data ?? [] });
   } catch (error) {
+    console.error('List Users Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
