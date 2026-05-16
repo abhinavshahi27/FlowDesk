@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "npx prisma generate && npx prisma db push",
-    "start": "node server.js"
-    "lint": "eslint"
-  },
+  "dev": "next dev",
+  "build": "npx prisma generate && npx prisma db push && next build",
+  "start": "next start",
+  "lint": "eslint"
+},
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "@types/bcryptjs": "^2.4.6",
