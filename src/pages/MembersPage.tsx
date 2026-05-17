@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowDown, ArrowUp, Crown, Search, Sparkles, Users } from 'lucide-react';
+import { ArrowDown, ArrowUp, Crown, Search, Sparkles, UserPlus, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { useProjects } from '../contexts/ProjectContext';
 import { supabase } from '../lib/supabase';
 import { clsx, getAvatarColor, getInitials } from '../lib/utils';
 import type { ProjectMember, Profile } from '../lib/database.types';
@@ -17,10 +18,18 @@ interface MemberRow {
 
 export default function MembersPage() {
   const { user } = useAuth();
+  const { inviteMember, fetchProjects } = useProjects();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<MemberRow[]>([]);
   const [query, setQuery] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteProjectId, setInviteProjectId] = useState('');
+  const [inviting, setInviting] = useState(false);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -86,6 +95,31 @@ export default function MembersPage() {
     });
   }, [rows, query]);
 
+  const adminProjects = useMemo(() => {
+    if (!user) return [];
+    const myRow = rows.find((r) => r.profile.id === user.id);
+    if (!myRow) return [];
+    return myRow.memberships
+      .filter((m) => m.role === 'admin' || m.project.owner_id === user.id)
+      .map((m) => m.project);
+  }, [rows, user]);
+
+  useEffect(() => {
+    if (!inviteProjectId && adminProjects.length > 0) {
+      setInviteProjectId(adminProjects[0].id);
+    }
+  }, [adminProjects, inviteProjectId]);
+
+  const handleInvite = async () => {
+    const email = inviteEmail.trim();
+    if (!email || !inviteProjectId) return;
+    setInviting(true);
+    await inviteMember(inviteProjectId, email);
+    setInviting(false);
+    setInviteEmail('');
+    await load();
+  };
+
   const updateRole = async (membershipId: string, projectId: string, nextRole: 'admin' | 'member') => {
     setSavingId(membershipId);
     const { error } = await supabase
@@ -134,6 +168,55 @@ export default function MembersPage() {
           </p>
         </div>
       </motion.div>
+
+      {adminProjects.length > 0 && (
+        <div className="rounded-3xl border border-border bg-surface p-4 sm:p-5">
+          <div className="mb-3 flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/30">
+              <UserPlus size={15} />
+            </span>
+            <div>
+              <h2 className="text-sm font-semibold text-ink">Invite a teammate</h2>
+              <p className="text-[11px] text-muted">
+                They must already have a FlowDesk account. They'll be added as a member; promote them after.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="teammate@example.com"
+              className="flex-1 rounded-xl border border-border bg-bg-soft px-3 py-2 text-sm text-ink placeholder-dim outline-none focus:border-accent"
+            />
+            <select
+              value={inviteProjectId}
+              onChange={(e) => setInviteProjectId(e.target.value)}
+              className="rounded-xl border border-border bg-bg-soft px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            >
+              {adminProjects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleInvite}
+              disabled={inviting || !inviteEmail.trim() || !inviteProjectId}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-gradient px-4 py-2 text-sm font-semibold text-on-accent shadow-glow transition hover:shadow-glow-strong disabled:opacity-60"
+            >
+              {inviting ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-on-accent/70 border-t-transparent" />
+              ) : (
+                <>
+                  <UserPlus size={14} /> Invite
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-2.5">
         <Search size={14} className="text-dim" />
